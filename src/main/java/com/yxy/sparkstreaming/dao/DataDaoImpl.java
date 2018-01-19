@@ -52,7 +52,7 @@ public class DataDaoImpl implements DataDao {
         int num = 0;
         try {
             Connection conn = JdbcUtil.getConnection();
-            String sql = "select count(*) from user where mac ='" + mac + "'";
+            String sql = "select count(*) from user where mac = '" + mac + "'";
 
             PreparedStatement preparedStatement = conn.prepareStatement(sql);
             ResultSet resultSet = preparedStatement.executeQuery();
@@ -67,13 +67,14 @@ public class DataDaoImpl implements DataDao {
 
     }
 
+
     public void addUser(String mac) {
 
         try {
             Connection conn = JdbcUtil.getConnection();
 
-            String sql = "insert into user(mac, is_in) values('"
-                    + mac + "', " + 1 +")";
+            String sql = "insert into user(mac, is_in, in_time) values('"
+                    + mac + "', " + 1 + ", unix_timestamp(now()))";
 
             PreparedStatement preparedStatement = conn.prepareStatement(sql);
             preparedStatement.executeUpdate();
@@ -84,13 +85,49 @@ public class DataDaoImpl implements DataDao {
 
     }
 
-    public void updateUser(String mac, String time) {
+    private boolean isIn(String mac) {
+
+        int in = 0;
+        try {
+            Connection conn = JdbcUtil.getConnection();
+            String sql = "select is_in from user where mac = '" + mac + "'";
+
+            PreparedStatement preparedStatement = conn.prepareStatement(sql);
+            ResultSet resultSet = preparedStatement.executeQuery();
+            while (resultSet.next()) {
+                in = resultSet.getInt(1);
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return in == 1;
+
+    }
+
+    public void updateUser(String mac) {
 
         try {
             Connection conn = JdbcUtil.getConnection();
 
-            String sql = "update user user(is_in, last_time) values('"
-                    + mac + "', " + 1 +")";
+            if (!isIn(mac)) {
+                String sql = "update user set is_in = " + 1 + ", times = times + 1, in_time = unix_timestamp(now()) where mac = '" + mac + "'";
+                PreparedStatement preparedStatement = conn.prepareStatement(sql);
+                preparedStatement.executeUpdate();
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+    }
+
+    public void updateStayTime() {
+
+        try {
+            Connection conn = JdbcUtil.getConnection();
+
+            String sql = "update user set stay_time = unix_timestamp(now()) - in_time where is_in = 1";
 
             PreparedStatement preparedStatement = conn.prepareStatement(sql);
             preparedStatement.executeUpdate();
@@ -142,6 +179,22 @@ public class DataDaoImpl implements DataDao {
         }
 
         return mac;
+
+    }
+
+    public void updateCycle() {
+
+        try {
+            Connection conn = JdbcUtil.getConnection();
+
+            String sql = "update user set cycle = unix_timestamp(in_time) - unix_timestamp(last_time) where is_in = 1 and times != 1";
+
+            PreparedStatement preparedStatement = conn.prepareStatement(sql);
+            preparedStatement.executeUpdate();
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
 
     }
 

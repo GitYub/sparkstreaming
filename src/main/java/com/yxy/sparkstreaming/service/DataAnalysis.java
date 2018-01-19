@@ -38,10 +38,16 @@ public class DataAnalysis {
         float deepRate = getDeepRate();
         int newNum = getNewNum();
         int oldNum = getOldNum();
+        updateStayTime();
+        updateCycle();
 
         addData(currentNum, jumpRate, deepRate, newNum, oldNum);
 
 
+    }
+
+    private static void updateStayTime() {
+        dataDao.updateStayTime();
     }
 
     private static int getNewNum() {
@@ -52,7 +58,9 @@ public class DataAnalysis {
         return dataDao.getOld();
     }
 
-
+    private static void updateCycle() {
+        dataDao.updateCycle();
+    }
 
     private static float getDeepRate() {
 
@@ -119,11 +127,11 @@ public class DataAnalysis {
             for (Object aMyList : myList) {
                 String[] dataSplit = getDataSplit(aMyList.toString());
                 dataDao.addRecord(batch, dataSplit[2], dataSplit[1]);
-//                if (!dataDao.getUser(dataSplit[2])) {
-//                    dataDao.addUser(dataSplit[2]);
-//                } else {
-//
-//                }
+                if (!dataDao.getUser(dataSplit[2])) {
+                    dataDao.addUser(dataSplit[2]);
+                } else {
+                    dataDao.updateUser(dataSplit[2]);
+                }
             }
         });
     }
