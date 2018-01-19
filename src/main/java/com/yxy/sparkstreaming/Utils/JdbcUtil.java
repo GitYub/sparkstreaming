@@ -43,7 +43,6 @@ public class JdbcUtil {
             }catch (Exception e) {
                 e.printStackTrace();
             }
-            rs = null;
         }
         if(st!=null){
             try{

@@ -35,7 +35,7 @@ public class JdbcPool implements DataSource {
             Class.forName(driver);
             for (int i = 0; i < jdbcPoolInitSize; i++) {
                 Connection conn = DriverManager.getConnection(url, username, password);
-                System.out.println("获取到了链接" + conn);
+                //System.out.println("获取到了链接" + conn);
                 //将获取到的数据库连接加入到listConnections集合中，listConnections集合此时就是一个存放了数据库连接的连接池
                 listConnections.add(conn);
             }
@@ -95,7 +95,7 @@ public class JdbcPool implements DataSource {
         if (listConnections.size()>0) {
             //从listConnections集合中获取一个数据库连接
             final Connection conn = listConnections.removeFirst();
-            System.out.println("listConnections数据库连接池大小是" + listConnections.size());
+            //System.out.println("listConnections数据库连接池大小是" + listConnections.size());
             //返回Connection对象的代理对象
             return (Connection) Proxy.newProxyInstance(JdbcPool.class.getClassLoader(), conn.getClass().getInterfaces(), (proxy, method, args) -> {
                 if(!method.getName().equals("close")){
@@ -103,8 +103,8 @@ public class JdbcPool implements DataSource {
                 }else{
                     //如果调用的是Connection对象的close方法，就把conn还给数据库连接池
                     listConnections.add(conn);
-                    System.out.println(conn + "被还给listConnections数据库连接池了！！");
-                    System.out.println("listConnections数据库连接池大小为" + listConnections.size());
+                    //System.out.println(conn + "被还给listConnections数据库连接池了！！");
+                    //System.out.println("listConnections数据库连接池大小为" + listConnections.size());
                     return null;
                 }
             });

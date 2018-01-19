@@ -1,11 +1,12 @@
 package com.yxy.sparkstreaming.service;
 
 import com.yxy.sparkstreaming.dao.DataDaoImpl;
-import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.streaming.api.java.JavaDStream;
 
+import java.sql.*;
 import java.util.ArrayList;
-import java.util.List;
+
+import static com.yxy.sparkstreaming.dao.DataDaoImpl.connPool;
 
 /**
  * @Author: Xinyu Yu
@@ -16,60 +17,52 @@ public class DataAnalysis {
 
     private static DataDaoImpl dataDao = new DataDaoImpl();
 
-    public static void getData(JavaDStream<String> lines) {
+    private static int getCurrentNum(Connection conn) {
 
-        long batch = dataDao.getRecordBatch();
-        addContent(batch + 1, lines);
-        analysis();
-
-    }
-
-    private static int getCurrentNum() {
-
-        long batch = dataDao.getRecordBatch();
-        return dataDao.getCurrentNum(batch);
+        long batch = DataDaoImpl.getMaxBatch(conn);
+        return DataDaoImpl.getCurrentNum(batch, conn);
 
     }
 
-    private static void analysis() {
+    private static void analysis(Connection conn) {
 
-        int currentNum = getCurrentNum();
-        float jumpRate = getJumpRate();
-        float deepRate = getDeepRate();
-        int newNum = getNewNum();
-        int oldNum = getOldNum();
-        updateStayTime();
-        updateCycle();
+        int currentNum = getCurrentNum(conn);
+        float jumpRate = getJumpRate(conn);
+        float deepRate = getDeepRate(conn);
+        int newNum = getNewNum(conn);
+        int oldNum = getOldNum(conn);
+        updateStayTime(conn);
+        updateCycle(conn);
+        updateOut(conn);
 
-        addData(currentNum, jumpRate, deepRate, newNum, oldNum);
-
+        addData(currentNum, jumpRate, deepRate, newNum, oldNum, conn);
 
     }
 
-    private static void updateStayTime() {
-        dataDao.updateStayTime();
+    private static void updateStayTime(Connection conn) {
+        DataDaoImpl.updateStayTime(conn);
     }
 
-    private static int getNewNum() {
-        return dataDao.getNew();
+    private static int getNewNum(Connection conn) {
+        return DataDaoImpl.getNew(conn);
     }
 
-    private static int getOldNum() {
-        return dataDao.getOld();
+    private static int getOldNum(Connection conn) {
+        return DataDaoImpl.getOld(conn);
     }
 
-    private static void updateCycle() {
-        dataDao.updateCycle();
+    private static void updateCycle(Connection conn) {
+        DataDaoImpl.updateCycle(conn);
     }
 
-    private static float getDeepRate() {
+    private static float getDeepRate(Connection conn) {
 
-        long batch = dataDao.getRecordBatch();
+        long batch = DataDaoImpl.getMaxBatch(conn);
 
         if (batch >= 3) {
-            ArrayList<String> beforeLast = dataDao.getNBatchMac(batch - 2);
-            ArrayList<String> lastMac = dataDao.getNBatchMac(batch - 1);
-            ArrayList<String> nowMac = dataDao.getNBatchMac(batch);
+            ArrayList<String> beforeLast = DataDaoImpl.getNBatchMac(batch - 2, conn);
+            ArrayList<String> lastMac = DataDaoImpl.getNBatchMac(batch - 1, conn);
+            ArrayList<String> nowMac = DataDaoImpl.getNBatchMac(batch, conn);
 
             int numIn = 0;
 
@@ -79,13 +72,11 @@ public class DataAnalysis {
                         for (String n : nowMac) {
                             if (b.equals(l) && b.equals(n)) {
                                 ++numIn;
-                                lastMac.remove(l);
-                                nowMac.remove(n);
                             }
                         }
                     }
                 }
-                return numIn / beforeLast.size() * 100;
+                return (float)numIn / beforeLast.size() * 100;
             }
         }
 
@@ -93,13 +84,43 @@ public class DataAnalysis {
 
     }
 
-    private static float getJumpRate() {
+    private static void updateOut(Connection conn) {
 
-        long batch = dataDao.getRecordBatch();
+        long batch = DataDaoImpl.getMaxBatch(conn);
 
         if (batch >= 2) {
-            ArrayList<String> lastMac = dataDao.getNBatchMac(batch - 1);
-            ArrayList<String> nowMac = dataDao.getNBatchMac(batch);
+            ArrayList<String> lastMac = DataDaoImpl.getNBatchMac(batch - 1, conn);
+            ArrayList<String> nowMac = DataDaoImpl.getNBatchMac(batch, conn);
+
+
+            if (!lastMac.isEmpty()) {
+
+                boolean in;
+
+                for (String l : lastMac) {
+                    in = false;
+                    for (String n : nowMac) {
+                        if (l.equals(n)) {
+                            in = true;
+                            break;
+                        }
+                    }
+                    if (!in) {
+                        DataDaoImpl.setZero(l, conn);
+                    }
+                }
+            }
+        }
+
+    }
+
+    private static float getJumpRate(Connection conn) {
+
+        long batch = DataDaoImpl.getMaxBatch(conn);
+
+        if (batch >= 2) {
+            ArrayList<String> lastMac = DataDaoImpl.getNBatchMac(batch - 1, conn);
+            ArrayList<String> nowMac = DataDaoImpl.getNBatchMac(batch, conn);
 
             int numIn = 0;
 
@@ -108,11 +129,10 @@ public class DataAnalysis {
                     for (String n : nowMac) {
                         if (l.equals(n)) {
                             ++numIn;
-                            nowMac.remove(n);
                         }
                     }
                 }
-                return (lastMac.size() - numIn) / lastMac.size() * 100;
+                return (float)(lastMac.size() - numIn) / lastMac.size() * 100;
             }
         }
 
@@ -120,20 +140,58 @@ public class DataAnalysis {
 
     }
 
-    private static void addContent(long batch, JavaDStream<String> a) {
-        a.foreachRDD((JavaRDD<String> x) -> {
-            List<String> myList = x.take((int)x.count());
+    public static void getData(JavaDStream<String> a) {
 
-            for (Object aMyList : myList) {
-                String[] dataSplit = getDataSplit(aMyList.toString());
-                dataDao.addRecord(batch, dataSplit[2], dataSplit[1]);
-                if (!dataDao.getUser(dataSplit[2])) {
-                    dataDao.addUser(dataSplit[2]);
+        a.foreachRDD(x -> x.foreachPartition(y -> {
+
+            Connection conn = connPool.getConnection();
+
+            long batch = DataDaoImpl.getMaxBatch(conn);
+
+            while (y.hasNext()) {
+
+                String[] dataSplit = getDataSplit(y.next());
+
+                DataDaoImpl.addRecord(conn, String.valueOf(batch + 1), dataSplit[2], dataSplit[1]);
+
+                if (!DataDaoImpl.getUser(conn, dataSplit[2])) {
+                    DataDaoImpl.addUser(conn, dataSplit[2]);
                 } else {
-                    dataDao.updateUser(dataSplit[2]);
+                    if (!DataDaoImpl.getIn(conn, dataSplit[2])) {
+                        DataDaoImpl.updateUser(conn, dataSplit[2]);
+                    }
                 }
             }
-        });
+
+            analysis(conn);
+
+            connPool.returnConnection(conn);
+        }));
+
+//        a.foreachRDD((JavaRDD<String> x) -> {
+//            List<String> myList = x.take((int)x.count());
+//
+//            long batch = dataDao.getRecordBatch();
+//            for (Object aMyList : myList) {
+//                String[] dataSplit = getDataSplit(aMyList.toString());
+//                System.out.println("batch:" + batch);
+//                dataDao.addRecord(batch + 1, dataSplit[2], dataSplit[1]);
+//                if (!dataDao.getUser(dataSplit[2])) {
+//                    dataDao.addUser(dataSplit[2]);
+//                } else {
+//                    dataDao.updateUser(dataSplit[2]);
+//                }
+//            }
+//
+////            analysis();
+////            try {
+////                connPool.refreshConnections();
+////                System.out.println("refresh");
+////            } catch (SQLException e) {
+////                e.printStackTrace();
+////            }
+//        });
+
     }
 
     private static String[] getDataSplit(String dataNonFormat ) {
@@ -144,9 +202,9 @@ public class DataAnalysis {
         return aa;
     }
 
-    private static void addData(int currentNum, float jumpRate, float deepRate, int newNum, int oldNum) {
+    private static void addData(int currentNum, float jumpRate, float deepRate, int newNum, int oldNum, Connection conn) {
 
-        dataDao.addResult(currentNum, jumpRate, deepRate, newNum, oldNum);
+        DataDaoImpl.addResult(currentNum, jumpRate, deepRate, newNum, oldNum, conn);
 
     }
 
