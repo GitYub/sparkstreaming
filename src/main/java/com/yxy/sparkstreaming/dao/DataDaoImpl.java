@@ -1,11 +1,16 @@
 package com.yxy.sparkstreaming.dao;
 
-import com.yxy.sparkstreaming.Utils.ConnectionPool;
+import com.yxy.sparkstreaming.pool.ConnectionPool;
 
 import java.sql.*;
 import java.util.ArrayList;
 
-public class DataDaoImpl implements DataDao {
+/**
+ * @Author: Xinyu Yu
+ * @Description: 数据库操作
+ * @Date: 17:50 2018/1/20
+ */
+public class DataDaoImpl {
 
     public static ConnectionPool connPool = new ConnectionPool(
             "com.mysql.jdbc.Driver",
@@ -15,39 +20,19 @@ public class DataDaoImpl implements DataDao {
     );
 
     public DataDaoImpl() {
+
         try {
             connPool.createPool();
         } catch (Exception e) {
             e.printStackTrace();
         }
-    }
 
-//    public void makeConn() {
-//        connPool =new ConnectionPool(
-//                "com.mysql.jdbc.Driver",
-//                "jdbc:mysql://120.79.139.121:3306/BA?characterEncoding=utf8&useSSL=true",
-//                "root",
-//                "2254655"
-//        );
-//        try {
-//            connPool.createPool();
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//        }
-//    }
-//
-//    public void refresh() {
-//        try {
-//            connPool.refreshConnections();
-//        } catch (SQLException e) {
-//            e.printStackTrace();
-//        }
-//    }
+    }
 
     public static void addRecord(Connection conn, String batch, String mac, String currentTime) {
 
         String sql = "insert into record(batch, mac, insert_current_time) values("
-                + batch + ", '" + mac + "', '" + currentTime +"')";
+                + batch + ", '"   + mac + "', '" + currentTime +"')";
 
         try {
             PreparedStatement preparedStatement = conn.prepareStatement(sql);

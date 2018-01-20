@@ -76,7 +76,7 @@ public class DataAnalysis {
                         }
                     }
                 }
-                return (float)numIn / beforeLast.size() * 100;
+                return (float)numIn / beforeLast.size();
             }
         }
 
@@ -132,7 +132,7 @@ public class DataAnalysis {
                         }
                     }
                 }
-                return (float)(lastMac.size() - numIn) / lastMac.size() * 100;
+                return (float)(lastMac.size() - numIn) / lastMac.size();
             }
         }
 

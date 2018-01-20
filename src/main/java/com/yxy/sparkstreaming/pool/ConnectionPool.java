@@ -1,4 +1,4 @@
-package com.yxy.sparkstreaming.Utils;
+package com.yxy.sparkstreaming.pool;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -9,6 +9,11 @@ import java.sql.Statement;
 import java.util.Enumeration;
 import java.util.Vector;
 
+/**
+ * @Author: Xinyu Yu
+ * @Description: 数据库连接池
+ * @Date: 17:51 2018/1/20
+ */
 public class ConnectionPool {
     private String jdbcDriver = "com.mysql.jdbc.Driver"; // 数据库驱动
     private String dbUrl = "jdbc:mysql://120.79.139.121:3306/BA?characterEncoding=utf8&useSSL=true"; // 数据 URL

@@ -1,14 +1,10 @@
 package com.yxy.sparkstreaming;
 
-import com.yxy.sparkstreaming.dao.DataDao;
-import com.yxy.sparkstreaming.dao.DataDaoImpl;
 import com.yxy.sparkstreaming.service.DataAnalysis;
 import kafka.serializer.StringDecoder;
 import org.apache.spark.SparkConf;
-import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaPairInputDStream;
-import org.apache.spark.streaming.api.java.JavaPairReceiverInputDStream;
 import org.apache.spark.streaming.kafka.KafkaUtils;
 import org.apache.spark.streaming.Durations;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
